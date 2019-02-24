@@ -1,10 +1,11 @@
 const puppeteer = require("puppeteer");
 const cheerio = require("cheerio");
 const fs = require("fs");
-const exec = require('child_process').execFile;
+const g_fs = require("graceful-fs");
+g_fs.gracefulify(fs); // SOLVES THE ERROR  "EMFILE: too many open files" from Loop FS
 
 var countPost = 0;
-const profile = "https://www.instagram.com/trapinboys/";// _loyalapparel
+const profile = "https://www.instagram.com/lfy.shop/"; // _loyalapparel
 var likes = []; // ITS FROMED BY {user: "nameOfUser", count: numberOfTimesLiked}
 
 (async () =>{
@@ -185,59 +186,51 @@ var likes = []; // ITS FROMED BY {user: "nameOfUser", count: numberOfTimesLiked}
     for (let i = 0; i < likes.length; i++) {
         likes[i] = {user : likes[i], count : 1};
     }
-    console.log ("About to end");
-    let userTmp;
+    console.log ("About to end"); // MESSAGE FOR CHECKING
+    
     let lastUser = likes.length; // THE LAST USER VISIBLE
     if(lastUser > 2){ // CHECK IF WE HAVE MORE THAN 1 USERS
         for (let i = 0; i < lastUser; i++) {
-            for (let j = i + 1; j < lastUser; j++) {
-                if(likes[i].user == likes[j].user){
-                    likes[i].count++; // ADD 1 TO COUNT
-                    for (let k = j; k < lastUser - 1; k++) { // DELETE THE USER FOUND
-                        userTmp = likes[k+1];
-                        likes[k+1] = likes[k];
-                        likes[k] = userTmp;
-                    }
-                    lastUser--;
-                }                
+            for (let j = i; j < lastUser; j++) {
+                if(j != i){
+                    if(likes[i].user == likes[j].user){
+                        likes[i].count++; // ADD 1 TO COUNT
+                        likes.splice(j,1);
+                        lastUser--;
+                    }       
+                }         
             }
         }
     }
     // SORT THE USERS BY COUNTER
-    if (likes.length > 2){
-        for (let i = 0; i < lastUser; i++) {
-            for (let j = 0; j < lastUser - 1 ; j++) {
-                if(likes[j].count < likes[j+1].count){
-                    console.log(likes[j]);
-                    userTmp = likes[j+1];
-                    likes[j+1] = likes[j];
-                    likes[j] = userTmp;
-                }
-            }
-        }
-    }
-    for (let i = 0; i < lastUser; i++) {
-        console.log(likes[i]);
-    }
+    likes.sort(compare); // DESC
+    
     console.log("Users that liked in this profile : " + lastUser);
     
 
-    
+    // TRUNCATE FILES 
+    fs.truncate("usersLiked.csv", (err) => {
+        console.log(err);
+    });
+    fs.truncate("formatedLiked.txt", (err) => {
+        console.log(err);
+    });
     //SAVE ALL USERS IN A FILE
-    fs.appendFile("usersLiked.csv",profile+"\r\n"+"Usuario;Likes\r\n", (err) => {
+    fs.appendFile("usersLiked.csv","Trapinboys"+"\r\n"+"Usuario;Likes\r\n", (err) => {
         if(err) throw err; 
         console.log("Have been saved all users");
     });
-    for (let i = 0; i < likes.length; i++) {
+    for (let i = 0; i < likes.length; i++) { // ONE FOR FORMATED TXT
         fs.appendFile("formatedLiked.txt", "Usuario : @" + likes[i].user + " Contador Me Gusta : " + likes[i].count + "\r\n", (err) => {
             if(err) throw err; 
             console.log("Have been saved all users");
         });
+    }
+    for (let i = 0; i < likes.length; i++) { // ONE FOR CSV
         fs.appendFile("usersLiked.csv",likes[i].user+";"+likes[i].count+"\r\n", (err) => {
             if(err) throw err; 
             console.log("Have been saved all users");
         });
-        
     }
     
     // CLOSE BROWSER INSTANCE
@@ -245,6 +238,12 @@ var likes = []; // ITS FROMED BY {user: "nameOfUser", count: numberOfTimesLiked}
 })().catch(async (err) => {
     console.log(err);
 });
+// COMPARE FUNCTION FOR SORT
+function compare(user1, user2){
+    if (user1.count < user2.count) { return 1 ; }
+    if (user1.count > user2.count) { return -1 ; }
+    return 0;
+}
 // USE LESS
 async function proxyScrap(){
     let ips = [];

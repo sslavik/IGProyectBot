@@ -63,7 +63,9 @@ var likes = []; // ITS FROMED BY {user: "nameOfUser", count: numberOfTimesLiked}
         
         // CHECK IF IT IS A VIDEO OR AN IMAGE
         await page.waitForSelector(".KlCQn.G14m-.EtaWk").catch(async () => {
-            await NoConnection(browser,page);
+            var instance = await NoConnection(browser,page);
+            browser = instance.Browser;
+            page = instance.Page;
         });
         var contentTmp = await page.content();
         console.log(cheerio(".kPFhm.B1JlO",contentTmp).length);
@@ -77,11 +79,12 @@ var likes = []; // ITS FROMED BY {user: "nameOfUser", count: numberOfTimesLiked}
             while (nextUser) {
                 ServerResponse = true;
                 await page.waitForSelector("._7UhW9.xLCgt.MMzan.KV-D4.fDxYl",{timeout : 6500}).catch( async () => {// WAIT FOR USER : NEED A CATCH
-                    var instance;
-                    instance = await NoConnection(browser,page);
+                    var instance = await NoConnection(browser,page);
                     browser = instance.Browser;
                     page = instance.Page;
                     ServerResponse = false;
+                    await page.waitForSelector("._0mzm-.sqdOP.yWX7d._8A5w5"); // WAIT FOR LIKES BUTTON
+                    await page.click("._0mzm-.sqdOP.yWX7d._8A5w5"); // CLICK THE LIKES BUTTON
                 });
                 if(ServerResponse){
                     var content = await page.content(); // READ THE CONTENT OF THE POST
@@ -149,6 +152,7 @@ var likes = []; // ITS FROMED BY {user: "nameOfUser", count: numberOfTimesLiked}
                     } 
                 }
                 // CHECK IF WE HAVE MORE COMMENTS TO OPEN
+                await page.waitFor(2000);
                 var contentTmp = await page.content();
                 if(cheerio(".Z4IfV._0mzm-.sqdOP.yWX7d",contentTmp).length != 0) // CHECK IF HAVE MORE THAN 15 COMMENTS
                 {
@@ -156,11 +160,21 @@ var likes = []; // ITS FROMED BY {user: "nameOfUser", count: numberOfTimesLiked}
                     await page.waitForSelector(".Z4IfV._0mzm-.sqdOP.yWX7d").catch(async () => {
                         countPost++;
                         CommentDetected = false;
-                        await NoConnection(browser,page);
+                        var instance = await NoConnection(browser,page);
+                        browser = instance.Browser;
+                        page = instance.Page;
                     });                                             // SHOW MORE COMMENTS BUTTON
                     // CHECK IF IT DIDNT CRASHED EARLIER
                     if(CommentDetected){
-                        await page.click(".Z4IfV._0mzm-.sqdOP.yWX7d");
+                        console.log(cheerio(".Z4IfV._0mzm-.sqdOP.yWX7d", contentTmp).parent().html());
+                        if(cheerio(".Z4IfV._0mzm-.sqdOP.yWX7d", contentTmp).parent().html().search("disabled") == -1){ 
+                            await page.click(".Z4IfV._0mzm-.sqdOP.yWX7d");
+                        }
+                        else {
+                            var instance = await NoConnection(browser, page);
+                            browser = instance.Browser;
+                            page = instance.Page;
+                        }
                     }
                 } else {
                     nextComments = false; // EXIT THE LOOP FROM COMMENTS
@@ -216,7 +230,7 @@ var likes = []; // ITS FROMED BY {user: "nameOfUser", count: numberOfTimesLiked}
         console.log(err);
     });
     //SAVE ALL USERS IN A FILE
-    fs.appendFile("usersLiked.csv","Trapinboys"+"\r\n"+"Usuario;Likes\r\n", (err) => {
+    fs.appendFile("usersLiked.csv",profile+"\r\n"+"Usuario;Likes\r\n", (err) => {
         if(err) throw err; 
         console.log("Have been saved all users");
     });
@@ -244,7 +258,7 @@ function compare(user1, user2){
     if (user1.count > user2.count) { return -1 ; }
     return 0;
 }
-// USE LESS
+// USELESS
 async function proxyScrap(){
     let ips = [];
     let ports = [];
@@ -315,9 +329,12 @@ async function NoConnection(browser, page){
             await page.waitFor(500); // WAIT FOR LOAD THE NEXT POST
         }
     }
-    await page.waitForSelector("._0mzm-.sqdOP.yWX7d._8A5w5").catch(async () => {
-        await NoConnection(browser,page);
-    });                                             // WAIT FOR LIKES BUTTON
-    await page.click("._0mzm-.sqdOP.yWX7d._8A5w5"); // CLICK THE LIKES BUTTON
+
+    // DONT WORK IF ITS A VIDEO
+    //await page.waitForSelector("._0mzm-.sqdOP.yWX7d._8A5w5").catch(async () => {
+    //    await NoConnection(browser,page);
+    //});                                             // WAIT FOR LIKES BUTTON
+    //await page.click("._0mzm-.sqdOP.yWX7d._8A5w5"); // CLICK THE LIKES BUTTON
+
     return { Page : page, Browser : browser};
 }
